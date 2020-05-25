@@ -1,0 +1,12 @@
+2nd door : 426
+Taker fade : 576
+On deck : 153.10574357622
+Taker kill : 438
+Ramp approach : 1042.3644917525
+Mid corridor : 391.34127600758
+Outside : 864.81696103575
+Past wall : 196.76882886561
+Early corridor : 360.73240577261
+Taker faded : 670
+1st door : 299
+Hostage run : 674
