@@ -8,6 +8,8 @@ Requires the Data_and_Utilities folders, and an active movie & level.
 
 Allows you to write simple scripts such as frig_agent_2.3_tt.lua, which specify various checkpoints throughout the level based (currently) on either player position, doors, or guards. It is the TAS equivalent of my SplitsROM.
 
+Parameters for checkpoints are really easy to find using the setup editor (https://github.com/carnivoroussociety/GoldEditor). See the example.
+
 ### Features
 
 When you reach a checkpoint, the computed split is compared to your best so far. If it is an improvement then the state is saved to a folder alongside your current movie.
