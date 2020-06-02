@@ -5,6 +5,9 @@ require "Data\\GE\\PositionData"
 require "Data\\GE\\PlayerData"
 require "HUD_Matt\\HUD_Matt_lib"    -- vector ops	
 
+-- Script module is separate - all modules probably should be
+require "script_module"
+
 local objectsByType = {}
 local doorsByPreset = {}
 local tilesByRoom = {}
@@ -107,16 +110,19 @@ end
 -- BEGIN achieved_at funcs (EXPORTS)
 -- Some rely on being run each frame
 
+local function boolToAchievedTime(b)
+    if b then
+        return GameData.get_mission_time()
+    else
+        return -1
+    end
+end
 
 function door_open_achieved_at(params)
     local preset = params[1]
 
     assert(doorsByPreset[preset] ~= nil, ("Door with preset %04x not found"):format(preset))
-    if DoorData:get_value(doorsByPreset[preset], "state") == 1 then
-        return GameData.get_mission_time()
-    else
-        return -1
-    end
+    return boolToAchievedTime(DoorData:get_value(doorsByPreset[preset], "state") == 1)
 end
 
 function room_entry_achieved_at(params)
@@ -193,12 +199,16 @@ function boundary_crossed_achieved_at(params)
     end
 end
 
+local function checkGuardID(guardId)
+    assert(guardsById[guardId] ~= nil, ("No guard with ID 0x%02x found"):format(guardId))
+end
+
 function guard_kill_achieved_at(params)
     local guardId = params[1]
     local fade = params[2] == true  -- optional, default false
     local action
 
-    assert(guardsById[guardId] ~= nil, ("No guard with ID 0x%02x found"):format(guardId))
+    checkGuardID(guardId)
 
     if (fade) then
         action = GUARD_ACTION_FADING
@@ -206,31 +216,52 @@ function guard_kill_achieved_at(params)
         action = GUARD_ACTION_DYING
     end
 
-    if (GuardData:get_value(guardsById[guardId], "current_action") == action) then
-        return GameData.get_mission_time()
-    else
-        return -1
-    end
+    return boolToAchievedTime(GuardData:get_value(guardsById[guardId], "current_action") == action)
 end
 
 function guard_moving_achieved_at(params)
     local guardId = params[1]
-    assert(guardsById[guardId] ~= nil, ("No guard with ID 0x%02x found"):format(guardId))
-    if (GuardData:get_value(guardsById[guardId], "current_action") == GUARD_ACTION_MOVING) then
-        return GameData.get_mission_time()
-    else
-        return -1
-    end
+    checkGuardID(guardId)
+    return boolToAchievedTime(GuardData:get_value(guardsById[guardId], "current_action") == GUARD_ACTION_MOVING)
 end
 
 function guard_faded_achieved_at(params)
     local guardId = params[1]
-    assert(guardsById[guardId] ~= nil, ("No guard with ID 0x%02x found"):format(guardId))
+    checkGuardID(guardId)
 
-    if (GuardData.is_empty(guardsById[guardId])) then
-        return GameData.get_mission_time()
+    return boolToAchievedTime(GuardData.is_empty(guardsById[guardId]))
+end
+
+function pad_targeted_achieved_at(params)
+    local guardId = params[1]
+    local pad = params[2]
+
+    checkGuardID(guardId)
+    
+    return boolToAchievedTime(GuardData:get_value(guardsById[guardId], "2328_preset") == pad)
+end
+
+function pad_near_achieved_at(params)
+    local actor = params[1]
+    local pad = params[2]
+    local posData
+
+    if actor == "player" then
+        posData = PlayerData.get_value("position_data_pointer") - 0x80000000
     else
-        return -1
+        checkGuardID(actor)
+        posData = GuardData:get_value(guardsById[actor], "position_data_pointer") - 0x80000000
     end
 
+    local nearPad = PositionData.getNearPad(posData)
+
+    return boolToAchievedTime(nearPad == pad)
+end
+
+function flag_set_achieved_at(params)
+    local flag = params[1]
+    assert( flag ~= 0 and bit.band(bit.bnot(flag - 1), flag) == flag , "Flag parameter must have a single bit set" )
+
+    local setFlags = memory.read_u32_be(0x030978)
+    return boolToAchievedTime(bit.band(setFlags, flag) ~= 0)
 end

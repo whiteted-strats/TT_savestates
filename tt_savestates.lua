@@ -26,6 +26,11 @@ local checkpointType = {
     ["kill_guard"] = {["achieved"] = guard_kill_achieved_at},
     ["moving_guard"] = {["achieved"] = guard_moving_achieved_at},
     ["faded_guard"] = {["achieved"] = guard_faded_achieved_at},
+    ["progressed_level_script"] = {["achieved"] = level_script_position_achieved_at},
+    ["progressed_guard_script"] = {["achieved"] = guard_script_position_achieved_at},
+    ["target_pad"] = {["achieved"] = pad_targeted_achieved_at},
+    ["near_pad"] = {["achieved"] = pad_near_achieved_at}, -- "near" has a technical and obscure meaning :) 
+    ["set_flag"] = {["achieved"] = flag_set_achieved_at},
 }
 
 -- TODO use gui.addMessage
@@ -146,18 +151,32 @@ local function onLoadState()
     -- But they can't have passed checkpoints without our script realising, and setting userdata
     -- We don't store the actual index for robustness : the list could change
     local name = userdata.get("TT_checkpoint_name")
+    -- Userdata seems very unreliable..
     if (name == nil) then
         prevCheckpointI = 0
         return
     end
 
     prevCheckpointI = indexForName[name]
-    assert(prevCheckpointI ~= nil, "Loaded state with unrecognised checkpoint name '" .. name .. "'")
+    console.log("Loaded userdata with TT_checkpoint_name = " .. name)
+    console.log("  Real mission time = " .. GameData.get_mission_time())
+    console.log("  Declared mission time = " .. (userdata.get("TT_mission_timer") or "nil"))
 
+    -- Assert that it's not nil, and remove the frame func as this floods the error output
+    if (prevCheckpointI == nil) then
+        while event.unregisterbyname("TT_frameend") do
+            --
+        end
+        assert(prevCheckpointI ~= nil, "Loaded state with unrecognised checkpoint name '" .. name .. "'")
+    end
 end
 
 local function onFrameEnd()
-    --gui.drawText(10, 10, "Prev checkpoint index = " .. prevCheckpointI)
+    userdata.set("TT_mission_timer", GameData.get_mission_time())
+
+    gui.drawText(10, 10, "Prev checkpoint index = " .. prevCheckpointI)
+    gui.drawText(10, 25, "Userdata = " .. (userdata.get("TT_checkpoint_name") or "nil"))
+    gui.drawText(10, 40, "Current time = " .. GameData.get_mission_time())
     if (prevCheckpointI >= table.getn(checkpoints)) then
         -- No more checkpoints
         return
@@ -199,7 +218,12 @@ end
 function tt_init()
     -- Call before setting the checkpoints
 
-    checkpoints = {}
+    -- Very sensible
+    if (userdata.remove("TT_checkpoint_name")) then
+        console.log("Existing TT userdata removed")
+    end
+
+    checkpoints = {n=0}
 
     -- There doesn't seem to be an 'on movie start' event for us to use,
     --   so start the script after loading the movie.
