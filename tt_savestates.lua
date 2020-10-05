@@ -26,11 +26,14 @@ local checkpointType = {
     ["kill_guard"] = {["achieved"] = guard_kill_achieved_at},
     ["moving_guard"] = {["achieved"] = guard_moving_achieved_at},
     ["faded_guard"] = {["achieved"] = guard_faded_achieved_at},
+    ["guard_nade"] = {["achieved"] = guard_pulled_nade_achieved_at},
+    ["guard_spawn"] = {["achieved"] = guard_spawn_achieved_at},
     ["progressed_level_script"] = {["achieved"] = level_script_position_achieved_at},
     ["progressed_guard_script"] = {["achieved"] = guard_script_position_achieved_at},
     ["target_pad"] = {["achieved"] = pad_targeted_achieved_at},
     ["near_pad"] = {["achieved"] = pad_near_achieved_at}, -- "near" has a technical and obscure meaning :) 
     ["set_flag"] = {["achieved"] = flag_set_achieved_at},
+    ["destroy_object"] = {["achieved"] = object_destroyed_at},
 }
 
 -- TODO use gui.addMessage

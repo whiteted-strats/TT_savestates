@@ -9,6 +9,7 @@ require "HUD_Matt\\HUD_Matt_lib"    -- vector ops
 require "script_module"
 
 local objectsByType = {}
+local objectsByPreset = {}
 local doorsByPreset = {}
 local tilesByRoom = {}
 local tilesByName = {}
@@ -31,7 +32,7 @@ GUARD_ACTION_LOOK_AROUND = 0x12
 GUARD_ACTION_PULL_GRENADE = 0x14
 
 
--- Fetch all the objects by type
+-- Fetch all the objects by type and preset
 local function processObj(odr)
     local t = odr.current_data.type
     if objectsByType[t] == nil then
@@ -39,6 +40,10 @@ local function processObj(odr)
     end
 
     table.insert(objectsByType[t], odr.current_address)
+
+    if odr:has_value("preset") then
+        objectsByPreset[odr:get_value("preset")] = odr.current_address
+    end
 end
 ObjectDataReader.for_each(processObj)
 
@@ -58,11 +63,14 @@ for _, tileAddr in ipairs(TileData.getAllTiles()) do
     tilesByName[name] = tileAddr
 end
 
-local function processGuard(gdr)
-    guardsById[gdr:get_value("id")] = gdr.current_address
+function refreshGuardList()
+    guardsById = {}
+    local function processGuard(gdr)
+        guardsById[gdr:get_value("id")] = gdr.current_address
+    end
+    GuardDataReader.for_each(processGuard)
 end
-GuardDataReader.for_each(processGuard)
-
+refreshGuardList()
 
 local function findCollision(vector, boundary)
     local rtn = -1
@@ -124,6 +132,14 @@ function door_open_achieved_at(params)
     assert(doorsByPreset[preset] ~= nil, ("Door with preset %04x not found"):format(preset))
     return boolToAchievedTime(DoorData:get_value(doorsByPreset[preset], "state") == 1)
 end
+
+function object_destroyed_at(params)
+    local preset = params[1]
+
+    local obj = objectsByPreset[preset]
+    local dead = (PhysicalObjectData:get_value(obj, "health") <= PhysicalObjectData:get_value(obj, "damage_received"))
+    return boolToAchievedTime(dead)
+
 
 function room_entry_achieved_at(params)
     -- Get the new player position
@@ -231,6 +247,30 @@ function guard_faded_achieved_at(params)
 
     return boolToAchievedTime(GuardData.is_empty(guardsById[guardId]))
 end
+
+function guard_spawn_achieved_at(params)
+    local guardId = params[1]
+
+    refreshGuardList()
+    return boolToAchievedTime(guardsById[guardId] ~= nil)
+end
+
+function guard_pulled_nade_achieved_at(params)
+    local guardId = params[1]
+    local spawner = params[2]
+    if spawner then
+        refreshGuardList()
+        if guardsById[guardID] == nil then
+            return -1
+        end
+    else
+        checkGuardID(guardId)
+    end
+
+    return boolToAchievedTime(GuardData:get_value(guardsById[guardId], "current_action") == GUARD_ACTION_PULL_GRENADE)
+end
+
+
 
 function pad_targeted_achieved_at(params)
     local guardId = params[1]
